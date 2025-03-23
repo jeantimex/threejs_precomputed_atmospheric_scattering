@@ -348,7 +348,7 @@ class Utils {
 
   static loadShaderSource(shaderName, callback) {
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', shaderName);
+    xhr.open('GET', `/public/${shaderName}`);
     xhr.responseType = 'text';
     xhr.onload = (event) => callback(xhr.responseText.trim());
     xhr.send();
@@ -363,7 +363,7 @@ class Utils {
 
   static loadTextureData(textureName, callback) {
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', textureName);
+    xhr.open('GET', `/public/${textureName}`);
     xhr.responseType = 'arraybuffer';
     xhr.onload = (event) => {
       const data = new DataView(xhr.response);
@@ -388,3 +388,6 @@ class Utils {
     return texture;
   }
 }
+
+// Export the Demo class for ES modules
+export { Demo };
