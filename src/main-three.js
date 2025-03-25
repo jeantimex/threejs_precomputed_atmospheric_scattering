@@ -1,7 +1,6 @@
 // three.js port of https://ebruneton.github.io/precomputed_atmospheric_scattering
 // See shaders.js for license
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { vertexShader, fragmentShader } from './shaders'
 
 export class Demo {
@@ -9,7 +8,6 @@ export class Demo {
     this.container = container;
     this.renderer = null;
     this.camera = null;
-    this.controls = null;
     this.scene = null;
     this.material = null;
 
@@ -67,22 +65,24 @@ export class Demo {
   }
 
   setupControls() {
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
+    // Disable the default OrbitControls
+    // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     
-    // Add constraints to prevent camera from going below the horizon
-    this.controls.maxPolarAngle = Math.PI / 2; // Limit to 90 degrees (horizon)
-    this.controls.minPolarAngle = 0; // Don't allow going below horizon
-    
-    // Add event listener for ctrl+drag to move the sun instead of the camera
+    // Add event listeners for our custom camera control
     this.renderer.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
     this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
     this.renderer.domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
+    this.renderer.domElement.addEventListener('wheel', this.onMouseWheel.bind(this));
     
     // Store initial values
     this.drag = undefined;
     this.previousMouseX = 0;
     this.previousMouseY = 0;
+    
+    // Initial camera angles (similar to the original implementation)
+    this.viewZenithAngleRadians = 1.47;
+    this.viewAzimuthAngleRadians = 0;
+    this.viewDistanceMeters = 9000;
   }
 
   async loadTextures() {
@@ -192,49 +192,80 @@ export class Demo {
 
   setupEventListeners() {
     window.addEventListener('resize', this.onWindowResize.bind(this));
+    // No need to add mouse events here as they're now in setupControls
   }
 
   onMouseDown(event) {
     this.previousMouseX = event.offsetX;
     this.previousMouseY = event.offsetY;
     
-    // If ctrl key is pressed, disable orbit controls and enable sun movement
+    // If ctrl key is pressed, enable sun movement
     if (event.ctrlKey) {
-      this.controls.enabled = false;
       this.drag = 'sun';
     } else {
-      this.drag = undefined;
+      this.drag = 'camera';
     }
   }
   
   onMouseMove(event) {
-    if (this.drag !== 'sun') return;
+    if (!this.drag) return;
     
     const kScale = 500;
     const mouseX = event.offsetX;
     const mouseY = event.offsetY;
     
-    // Update sun position
-    this.sunZenithAngleRadians -= (this.previousMouseY - mouseY) / kScale;
-    this.sunZenithAngleRadians = Math.max(0, Math.min(Math.PI, this.sunZenithAngleRadians));
-    this.sunAzimuthAngleRadians += (this.previousMouseX - mouseX) / kScale;
-    
-    // Update sun direction in the shader
-    const sunDirection = new THREE.Vector3(
-      Math.sin(this.sunZenithAngleRadians) * Math.cos(this.sunAzimuthAngleRadians),
-      Math.sin(this.sunZenithAngleRadians) * Math.sin(this.sunAzimuthAngleRadians),
-      Math.cos(this.sunZenithAngleRadians)
-    );
-    this.material.uniforms.sun_direction.value = sunDirection;
+    if (this.drag === 'sun') {
+      // Update sun position
+      this.sunZenithAngleRadians -= (this.previousMouseY - mouseY) / kScale;
+      this.sunZenithAngleRadians = Math.max(0, Math.min(Math.PI, this.sunZenithAngleRadians));
+      this.sunAzimuthAngleRadians += (this.previousMouseX - mouseX) / kScale;
+      
+      // Update sun direction in the shader
+      const sunDirection = new THREE.Vector3(
+        Math.sin(this.sunZenithAngleRadians) * Math.cos(this.sunAzimuthAngleRadians),
+        Math.sin(this.sunZenithAngleRadians) * Math.sin(this.sunAzimuthAngleRadians),
+        Math.cos(this.sunZenithAngleRadians)
+      );
+      this.material.uniforms.sun_direction.value = sunDirection;
+    } else if (this.drag === 'camera') {
+      // Update camera position
+      this.viewZenithAngleRadians += (this.previousMouseY - mouseY) / kScale;
+      this.viewZenithAngleRadians = Math.max(0, Math.min(Math.PI / 2, this.viewZenithAngleRadians));
+      this.viewAzimuthAngleRadians += (this.previousMouseX - mouseX) / kScale;
+      
+      // Update camera position based on spherical coordinates
+      const distance = this.viewDistanceMeters / this.kLengthUnitInMeters;
+      const x = distance * Math.sin(this.viewZenithAngleRadians) * Math.cos(this.viewAzimuthAngleRadians);
+      const y = distance * Math.sin(this.viewZenithAngleRadians) * Math.sin(this.viewAzimuthAngleRadians);
+      const z = distance * Math.cos(this.viewZenithAngleRadians);
+      
+      this.camera.position.set(x, y, z);
+      this.camera.lookAt(0, 0, 0);
+    }
     
     this.previousMouseX = mouseX;
     this.previousMouseY = mouseY;
   }
   
   onMouseUp(event) {
-    // Re-enable orbit controls when mouse is released
-    this.controls.enabled = true;
     this.drag = undefined;
+  }
+  
+  onMouseWheel(event) {
+    // Zoom in/out
+    this.viewDistanceMeters *= event.deltaY > 0 ? 1.05 : 1 / 1.05;
+    
+    // Update camera position
+    const distance = this.viewDistanceMeters / this.kLengthUnitInMeters;
+    const x = distance * Math.sin(this.viewZenithAngleRadians) * Math.cos(this.viewAzimuthAngleRadians);
+    const y = distance * Math.sin(this.viewZenithAngleRadians) * Math.sin(this.viewAzimuthAngleRadians);
+    const z = distance * Math.cos(this.viewZenithAngleRadians);
+    
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(0, 0, 0);
+    
+    // Prevent default scroll behavior
+    event.preventDefault();
   }
 
   onWindowResize() {
@@ -251,7 +282,6 @@ export class Demo {
   }
 
   render() {
-    this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
 }
