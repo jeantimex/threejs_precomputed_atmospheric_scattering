@@ -118,11 +118,8 @@ export class Demo {
   }
 
   setupScene() {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute([-1, -1, 3, -1, -1, 3], 2)
-    );
+    // Create a proper full-screen quad for the sky using PlaneGeometry
+    const geometry = new THREE.PlaneGeometry(2, 2);
 
     this.material = new THREE.RawShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -157,7 +154,7 @@ export class Demo {
 
     this.scene = new THREE.Scene();
     
-    // Create sky mesh
+    // Create sky mesh with the proper geometry
     const skyMesh = new THREE.Mesh(geometry, this.material);
     skyMesh.frustumCulled = false;
     this.scene.add(skyMesh);
