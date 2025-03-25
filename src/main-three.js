@@ -69,6 +69,20 @@ export class Demo {
   setupControls() {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
+    
+    // Add constraints to prevent camera from going below the horizon
+    this.controls.maxPolarAngle = Math.PI / 2; // Limit to 90 degrees (horizon)
+    this.controls.minPolarAngle = 0; // Don't allow going below horizon
+    
+    // Add event listener for ctrl+drag to move the sun instead of the camera
+    this.renderer.domElement.addEventListener('mousedown', this.onMouseDown.bind(this));
+    this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
+    this.renderer.domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
+    
+    // Store initial values
+    this.drag = undefined;
+    this.previousMouseX = 0;
+    this.previousMouseY = 0;
   }
 
   async loadTextures() {
@@ -178,6 +192,49 @@ export class Demo {
 
   setupEventListeners() {
     window.addEventListener('resize', this.onWindowResize.bind(this));
+  }
+
+  onMouseDown(event) {
+    this.previousMouseX = event.offsetX;
+    this.previousMouseY = event.offsetY;
+    
+    // If ctrl key is pressed, disable orbit controls and enable sun movement
+    if (event.ctrlKey) {
+      this.controls.enabled = false;
+      this.drag = 'sun';
+    } else {
+      this.drag = undefined;
+    }
+  }
+  
+  onMouseMove(event) {
+    if (this.drag !== 'sun') return;
+    
+    const kScale = 500;
+    const mouseX = event.offsetX;
+    const mouseY = event.offsetY;
+    
+    // Update sun position
+    this.sunZenithAngleRadians -= (this.previousMouseY - mouseY) / kScale;
+    this.sunZenithAngleRadians = Math.max(0, Math.min(Math.PI, this.sunZenithAngleRadians));
+    this.sunAzimuthAngleRadians += (this.previousMouseX - mouseX) / kScale;
+    
+    // Update sun direction in the shader
+    const sunDirection = new THREE.Vector3(
+      Math.sin(this.sunZenithAngleRadians) * Math.cos(this.sunAzimuthAngleRadians),
+      Math.sin(this.sunZenithAngleRadians) * Math.sin(this.sunAzimuthAngleRadians),
+      Math.cos(this.sunZenithAngleRadians)
+    );
+    this.material.uniforms.sun_direction.value = sunDirection;
+    
+    this.previousMouseX = mouseX;
+    this.previousMouseY = mouseY;
+  }
+  
+  onMouseUp(event) {
+    // Re-enable orbit controls when mouse is released
+    this.controls.enabled = true;
+    this.drag = undefined;
   }
 
   onWindowResize() {
