@@ -51,7 +51,6 @@ const IRRADIANCE_TEXTURE_WIDTH = 64;
 const IRRADIANCE_TEXTURE_HEIGHT = 16;
 
 const kSunAngularRadius = 0.00935 / 2;
-const kSunSolidAngle = Math.PI * kSunAngularRadius * kSunAngularRadius;
 const kLengthUnitInMeters = 1000;
 
 /*
