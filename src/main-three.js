@@ -3,6 +3,17 @@
 import * as THREE from 'three'
 import { vertexShader, fragmentShader } from './shaders'
 
+// Constants
+const TRANSMITTANCE_TEXTURE_WIDTH = 256;
+const TRANSMITTANCE_TEXTURE_HEIGHT = 64;
+const SCATTERING_TEXTURE_WIDTH = 256;
+const SCATTERING_TEXTURE_HEIGHT = 128;
+const SCATTERING_TEXTURE_DEPTH = 32;
+const IRRADIANCE_TEXTURE_WIDTH = 64;
+const IRRADIANCE_TEXTURE_HEIGHT = 16;
+const kSunAngularRadius = 0.00935 / 2;
+const kLengthUnitInMeters = 1000;
+
 export class Demo {
   constructor(container) {
     this.container = container;
@@ -11,16 +22,6 @@ export class Demo {
     this.scene = null;
     this.material = null;
 
-    // Constants
-    this.TRANSMITTANCE_TEXTURE_WIDTH = 256;
-    this.TRANSMITTANCE_TEXTURE_HEIGHT = 64;
-    this.SCATTERING_TEXTURE_WIDTH = 256;
-    this.SCATTERING_TEXTURE_HEIGHT = 128;
-    this.SCATTERING_TEXTURE_DEPTH = 32;
-    this.IRRADIANCE_TEXTURE_WIDTH = 64;
-    this.IRRADIANCE_TEXTURE_HEIGHT = 16;
-    this.kSunAngularRadius = 0.00935 / 2;
-    this.kLengthUnitInMeters = 1000;
     this.sunZenithAngleRadians = 1.3;
     this.sunAzimuthAngleRadians = 2.9;
 
@@ -96,8 +97,8 @@ export class Demo {
 
     this.transmittanceTexture = new THREE.DataTexture(
       transmittanceData,
-      this.TRANSMITTANCE_TEXTURE_WIDTH,
-      this.TRANSMITTANCE_TEXTURE_HEIGHT
+      TRANSMITTANCE_TEXTURE_WIDTH,
+      TRANSMITTANCE_TEXTURE_HEIGHT
     );
     this.transmittanceTexture.magFilter = this.transmittanceTexture.minFilter =
       THREE.LinearFilter;
@@ -111,9 +112,9 @@ export class Demo {
 
     this.scatteringTexture = new THREE.Data3DTexture(
       scatteringData,
-      this.SCATTERING_TEXTURE_WIDTH,
-      this.SCATTERING_TEXTURE_HEIGHT,
-      this.SCATTERING_TEXTURE_DEPTH
+      SCATTERING_TEXTURE_WIDTH,
+      SCATTERING_TEXTURE_HEIGHT,
+      SCATTERING_TEXTURE_DEPTH
     );
     this.scatteringTexture.magFilter = this.scatteringTexture.minFilter = THREE.LinearFilter;
     this.scatteringTexture.internalFormat = 'RGBA16F';
@@ -122,8 +123,8 @@ export class Demo {
 
     this.irradianceTexture = new THREE.DataTexture(
       irradianceData,
-      this.IRRADIANCE_TEXTURE_WIDTH,
-      this.IRRADIANCE_TEXTURE_HEIGHT
+      IRRADIANCE_TEXTURE_WIDTH,
+      IRRADIANCE_TEXTURE_HEIGHT
     );
     this.irradianceTexture.magFilter = this.irradianceTexture.minFilter = THREE.LinearFilter;
     this.irradianceTexture.internalFormat = 'RGBA16F';
@@ -146,7 +147,7 @@ export class Demo {
         white_point: { value: new THREE.Vector3(1, 1, 1) },
         exposure: { value: 10 },
         earth_center: {
-          value: new THREE.Vector3(0, 0, -6360000 / this.kLengthUnitInMeters)
+          value: new THREE.Vector3(0, 0, -6360000 / kLengthUnitInMeters)
         },
         sun_direction: {
           value: new THREE.Vector3(
@@ -157,8 +158,8 @@ export class Demo {
         },
         sun_size: {
           value: new THREE.Vector2(
-            Math.tan(this.kSunAngularRadius),
-            Math.cos(this.kSunAngularRadius)
+            Math.tan(kSunAngularRadius),
+            Math.cos(kSunAngularRadius)
           )
         }
       },
@@ -192,6 +193,8 @@ export class Demo {
 
   setupEventListeners() {
     window.addEventListener('resize', this.onWindowResize.bind(this));
+    // Add keyboard event listener
+    window.addEventListener('keypress', this.onKeyPress.bind(this));
     // No need to add mouse events here as they're now in setupControls
   }
 
@@ -234,7 +237,7 @@ export class Demo {
       this.viewAzimuthAngleRadians += (this.previousMouseX - mouseX) / kScale;
       
       // Update camera position based on spherical coordinates
-      const distance = this.viewDistanceMeters / this.kLengthUnitInMeters;
+      const distance = this.viewDistanceMeters / kLengthUnitInMeters;
       const x = distance * Math.sin(this.viewZenithAngleRadians) * Math.cos(this.viewAzimuthAngleRadians);
       const y = distance * Math.sin(this.viewZenithAngleRadians) * Math.sin(this.viewAzimuthAngleRadians);
       const z = distance * Math.cos(this.viewZenithAngleRadians);
@@ -256,7 +259,7 @@ export class Demo {
     this.viewDistanceMeters *= event.deltaY > 0 ? 1.05 : 1 / 1.05;
     
     // Update camera position
-    const distance = this.viewDistanceMeters / this.kLengthUnitInMeters;
+    const distance = this.viewDistanceMeters / kLengthUnitInMeters;
     const x = distance * Math.sin(this.viewZenithAngleRadians) * Math.cos(this.viewAzimuthAngleRadians);
     const y = distance * Math.sin(this.viewZenithAngleRadians) * Math.sin(this.viewAzimuthAngleRadians);
     const z = distance * Math.cos(this.viewZenithAngleRadians);
@@ -283,5 +286,70 @@ export class Demo {
 
   render() {
     this.renderer.render(this.scene, this.camera);
+  }
+
+  setView(viewDistanceMeters, viewZenithAngleRadians, viewAzimuthAngleRadians,
+      sunZenithAngleRadians, sunAzimuthAngleRadians, exposure) {
+    this.viewDistanceMeters = viewDistanceMeters;
+    this.viewZenithAngleRadians = viewZenithAngleRadians;
+    this.viewAzimuthAngleRadians = viewAzimuthAngleRadians;
+    this.sunZenithAngleRadians = sunZenithAngleRadians;
+    this.sunAzimuthAngleRadians = sunAzimuthAngleRadians;
+    
+    // Update camera position
+    const distance = this.viewDistanceMeters / kLengthUnitInMeters;
+    const x = distance * Math.sin(this.viewZenithAngleRadians) * Math.cos(this.viewAzimuthAngleRadians);
+    const y = distance * Math.sin(this.viewZenithAngleRadians) * Math.sin(this.viewAzimuthAngleRadians);
+    const z = distance * Math.cos(this.viewZenithAngleRadians);
+    
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(0, 0, 0);
+    
+    // Update sun direction
+    const sunDirection = new THREE.Vector3(
+      Math.sin(this.sunZenithAngleRadians) * Math.cos(this.sunAzimuthAngleRadians),
+      Math.sin(this.sunZenithAngleRadians) * Math.sin(this.sunAzimuthAngleRadians),
+      Math.cos(this.sunZenithAngleRadians)
+    );
+    this.material.uniforms.sun_direction.value = sunDirection;
+    
+    // Update exposure
+    this.material.uniforms.exposure.value = exposure;
+  }
+
+  onKeyPress(event) {
+    const key = event.key;
+    if (key == 'h') {
+      // Toggle help display if implemented
+      const helpElement = document.getElementById('help');
+      if (helpElement) {
+        const hidden = helpElement.style.display == 'none';
+        helpElement.style.display = hidden ? 'block' : 'none';
+      }
+    } else if (key == '+') {
+      // Increase exposure
+      this.material.uniforms.exposure.value *= 1.1;
+    } else if (key == '-') {
+      // Decrease exposure
+      this.material.uniforms.exposure.value /= 1.1;
+    } else if (key == '1') {
+      this.setView(9000, 1.47, 0, 1.3, 3, 10);
+    } else if (key == '2') {
+      this.setView(9000, 1.47, 0, 1.564, -3, 10);
+    } else if (key == '3') {
+      this.setView(7000, 1.57, 0, 1.54, -2.96, 10);
+    } else if (key == '4') {
+      this.setView(7000, 1.57, 0, 1.328, -3.044, 10);
+    } else if (key == '5') {
+      this.setView(9000, 1.39, 0, 1.2, 0.7, 10);
+    } else if (key == '6') {
+      this.setView(9000, 1.5, 0, 1.628, 1.05, 200);
+    } else if (key == '7') {
+      this.setView(7000, 1.43, 0, 1.57, 1.34, 40);
+    } else if (key == '8') {
+      this.setView(2.7e6, 0.81, 0, 1.57, 2, 10);
+    } else if (key == '9') {
+      this.setView(1.2e7, 0.0, 0, 0.93, -2, 10);
+    }
   }
 }
