@@ -35,6 +35,10 @@ export class Demo {
     await this.loadTextures();
     this.setupScene();
     this.setupEventListeners();
+    
+    // Set default view (same as key 1)
+    this.setView(9000, 1.47, 0, 1.3, 2.9, 10);
+    
     this.startAnimationLoop();
   }
 
