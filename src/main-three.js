@@ -91,49 +91,76 @@ export class Demo {
   }
 
   async loadTextures() {
-    const [transmittanceData, scatteringData, irradianceData] = await Promise.all(
-      ['/transmittance.dat', '/scattering.dat', '/irradiance.dat'].map((file) =>
-        fetch(file)
-          .then((res) => res.arrayBuffer())
-          .then((buffer) => new Float32Array(buffer))
+    // Get the base URL that works in both development and production
+    // For GitHub Pages, we need to ensure we're using the correct path
+    const baseUrl = import.meta.env.BASE_URL;
+    console.log('Base URL:', baseUrl);
+    
+    // Ensure the base URL ends with a slash
+    const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    
+    const assetUrls = [
+      `${normalizedBaseUrl}assets/transmittance.dat`,
+      `${normalizedBaseUrl}assets/scattering.dat`,
+      `${normalizedBaseUrl}assets/irradiance.dat`
+    ];
+    
+    console.log('Loading assets from:', assetUrls);
+    
+    try {
+      const [transmittanceData, scatteringData, irradianceData] = await Promise.all(
+        assetUrls.map((url) =>
+          fetch(url)
+            .then((res) => {
+              if (!res.ok) {
+                console.error(`Failed to load ${url}: ${res.status} ${res.statusText}`);
+                throw new Error(`Failed to load ${url}: ${res.status} ${res.statusText}`);
+              }
+              return res.arrayBuffer();
+            })
+            .then((buffer) => new Float32Array(buffer))
+        )
+      );
+
+      this.transmittanceTexture = new THREE.DataTexture(
+        transmittanceData,
+        TRANSMITTANCE_TEXTURE_WIDTH,
+        TRANSMITTANCE_TEXTURE_HEIGHT
+      );
+      this.transmittanceTexture.magFilter = this.transmittanceTexture.minFilter =
+        THREE.LinearFilter;
+      this.transmittanceTexture.internalFormat = this.renderer.extensions.has(
+        'OES_texture_float_linear'
       )
-    );
+        ? 'RGBA32F'
+        : 'RGBA16F';
+      this.transmittanceTexture.type = THREE.FloatType;
+      this.transmittanceTexture.needsUpdate = true; // three.js unsets this for data textures since r136
 
-    this.transmittanceTexture = new THREE.DataTexture(
-      transmittanceData,
-      TRANSMITTANCE_TEXTURE_WIDTH,
-      TRANSMITTANCE_TEXTURE_HEIGHT
-    );
-    this.transmittanceTexture.magFilter = this.transmittanceTexture.minFilter =
-      THREE.LinearFilter;
-    this.transmittanceTexture.internalFormat = this.renderer.extensions.has(
-      'OES_texture_float_linear'
-    )
-      ? 'RGBA32F'
-      : 'RGBA16F';
-    this.transmittanceTexture.type = THREE.FloatType;
-    this.transmittanceTexture.needsUpdate = true; // three.js unsets this for data textures since r136
+      this.scatteringTexture = new THREE.Data3DTexture(
+        scatteringData,
+        SCATTERING_TEXTURE_WIDTH,
+        SCATTERING_TEXTURE_HEIGHT,
+        SCATTERING_TEXTURE_DEPTH
+      );
+      this.scatteringTexture.magFilter = this.scatteringTexture.minFilter = THREE.LinearFilter;
+      this.scatteringTexture.internalFormat = 'RGBA16F';
+      this.scatteringTexture.type = THREE.FloatType;
+      this.scatteringTexture.needsUpdate = true;
 
-    this.scatteringTexture = new THREE.Data3DTexture(
-      scatteringData,
-      SCATTERING_TEXTURE_WIDTH,
-      SCATTERING_TEXTURE_HEIGHT,
-      SCATTERING_TEXTURE_DEPTH
-    );
-    this.scatteringTexture.magFilter = this.scatteringTexture.minFilter = THREE.LinearFilter;
-    this.scatteringTexture.internalFormat = 'RGBA16F';
-    this.scatteringTexture.type = THREE.FloatType;
-    this.scatteringTexture.needsUpdate = true;
-
-    this.irradianceTexture = new THREE.DataTexture(
-      irradianceData,
-      IRRADIANCE_TEXTURE_WIDTH,
-      IRRADIANCE_TEXTURE_HEIGHT
-    );
-    this.irradianceTexture.magFilter = this.irradianceTexture.minFilter = THREE.LinearFilter;
-    this.irradianceTexture.internalFormat = 'RGBA16F';
-    this.irradianceTexture.type = THREE.FloatType;
-    this.irradianceTexture.needsUpdate = true;
+      this.irradianceTexture = new THREE.DataTexture(
+        irradianceData,
+        IRRADIANCE_TEXTURE_WIDTH,
+        IRRADIANCE_TEXTURE_HEIGHT
+      );
+      this.irradianceTexture.magFilter = this.irradianceTexture.minFilter = THREE.LinearFilter;
+      this.irradianceTexture.internalFormat = 'RGBA16F';
+      this.irradianceTexture.type = THREE.FloatType;
+      this.irradianceTexture.needsUpdate = true;
+    } catch (error) {
+      console.error('Error loading textures:', error);
+      alert('Failed to load textures. See console for details.');
+    }
   }
 
   setupScene() {

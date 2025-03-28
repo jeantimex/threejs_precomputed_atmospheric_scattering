@@ -3,13 +3,13 @@ import { resolve } from 'path';
 
 export default defineConfig({
   // Base public path when served in production
-  base: './',
-  
+  base: '/threejs_precomputed_atmospheric_scattering/',
+
   // Configure the build
   build: {
     // Output directory for the build
     outDir: 'dist',
-    
+
     // Configure the entry point
     rollupOptions: {
       input: {
@@ -17,16 +17,16 @@ export default defineConfig({
       },
     },
   },
-  
+
   // Configure the dev server
   server: {
     open: true, // Automatically open the browser
     port: 3000,
   },
-  
+
   // Configure asset handling
   assetsInclude: ['**/*.dat'], // Ensure .dat files are treated as assets
-  
+
   // Configure public directory (where static assets are stored)
   publicDir: 'public',
 });
